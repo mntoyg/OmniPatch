@@ -15,13 +15,14 @@ dependencies = [
     "pydantic-settings>=2.0",
     "anthropic>=2.3.0",
     "pygithub>=2.10.0",
+    "bandit>=1.9",
 ]
 
 [project.scripts]
 omnipatch = "omnipatch.cli:app"
 
 [dependency-groups]
-dev = ["bandit>=1.9", "mypy>=1.10", "pytest>=8.0", "ruff>=0.5"]
+dev = ["mypy>=1.10", "pytest>=8.0", "ruff>=0.5"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/omnipatch/scanners/data/stub_findings.json" = "omnipatch/scanners/data/stub_findings.json"
