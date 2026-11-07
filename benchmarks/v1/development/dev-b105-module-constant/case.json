@@ -1,0 +1,101 @@
+{
+  "case_id": "dev-b105-module-constant",
+  "split": "development",
+  "rule_id": "B105",
+  "vulnerable_source": "vulnerable.py",
+  "reference_fix_source": "reference_fix.py",
+  "reference_fix_status": "approved_by_owner",
+  "rationale": "The module constant contains only a self-labelled fake password. Reading APP_PASSWORD from the environment removes the credential literal; os is imported at module scope.",
+  "regression_test": "tests/benchmarks/test_development_cases.py::test_environment_repairs_remove_self_labelled_passwords",
+  "bandit_identity": {
+    "rule_id": "B105",
+    "relative_file": "benchmarks/v1/development/dev-b105-module-constant/vulnerable.py"
+  },
+  "evidence": {
+    "baseline": "evidence/baseline.json",
+    "reference_fix": "evidence/reference_fix.json"
+  },
+  "bandit_version": "1.9.4",
+  "baseline_evidence": {
+    "command_argv": [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "bandit",
+      "-q",
+      "-f",
+      "json",
+      "-o",
+      "benchmarks/v1/development/dev-b105-module-constant/evidence/baseline.json",
+      "benchmarks/v1/development/dev-b105-module-constant/vulnerable.py"
+    ],
+    "exit_status": 1,
+    "errors": [],
+    "target_findings": [
+      {
+        "code": "1 APP_PASSWORD = \"FAKE_BENCHMARK_PASSWORD_DO_NOT_USE\"\n2 \n3 \n",
+        "col_offset": 15,
+        "end_col_offset": 51,
+        "filename": ".\\benchmarks/v1/development/dev-b105-module-constant/vulnerable.py",
+        "issue_confidence": "MEDIUM",
+        "issue_cwe": {
+          "id": 259,
+          "link": "https://cwe.mitre.org/data/definitions/259.html"
+        },
+        "issue_severity": "LOW",
+        "issue_text": "Possible hardcoded password: 'FAKE_BENCHMARK_PASSWORD_DO_NOT_USE'",
+        "line_number": 1,
+        "line_range": [
+          1
+        ],
+        "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html",
+        "test_id": "B105",
+        "test_name": "hardcoded_password_string"
+      }
+    ],
+    "all_findings": [
+      {
+        "code": "1 APP_PASSWORD = \"FAKE_BENCHMARK_PASSWORD_DO_NOT_USE\"\n2 \n3 \n",
+        "col_offset": 15,
+        "end_col_offset": 51,
+        "filename": ".\\benchmarks/v1/development/dev-b105-module-constant/vulnerable.py",
+        "issue_confidence": "MEDIUM",
+        "issue_cwe": {
+          "id": 259,
+          "link": "https://cwe.mitre.org/data/definitions/259.html"
+        },
+        "issue_severity": "LOW",
+        "issue_text": "Possible hardcoded password: 'FAKE_BENCHMARK_PASSWORD_DO_NOT_USE'",
+        "line_number": 1,
+        "line_range": [
+          1
+        ],
+        "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html",
+        "test_id": "B105",
+        "test_name": "hardcoded_password_string"
+      }
+    ],
+    "report": "evidence/baseline.json"
+  },
+  "proposed_post_fix_evidence": {
+    "command_argv": [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "bandit",
+      "-q",
+      "-f",
+      "json",
+      "-o",
+      "benchmarks/v1/development/dev-b105-module-constant/evidence/reference_fix.json",
+      "benchmarks/v1/development/dev-b105-module-constant/reference_fix.py"
+    ],
+    "exit_status": 0,
+    "errors": [],
+    "target_findings": [],
+    "all_findings": [],
+    "report": "evidence/reference_fix.json"
+  },
+  "reference_fix_approved_on": "2026-10-27",
+  "secret_environment": {
+    "app.py::<module>": "APP_PASSWORD"
+  }
+}

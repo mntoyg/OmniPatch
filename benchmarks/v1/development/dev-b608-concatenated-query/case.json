@@ -1,0 +1,101 @@
+{
+  "case_id": "dev-b608-concatenated-query",
+  "split": "development",
+  "rule_id": "B608",
+  "vulnerable_source": "vulnerable.py",
+  "reference_fix_source": "reference_fix.py",
+  "reference_fix_status": "approved_by_owner",
+  "rationale": "The item ID is concatenated between SQL quote characters. SQLite qmark binding prevents an injection-looking item ID from changing the WHERE clause.",
+  "regression_test": "tests/benchmarks/test_development_cases.py::test_sqlite_repairs_bind_injected_looking_values",
+  "bandit_identity": {
+    "rule_id": "B608",
+    "relative_file": "benchmarks/v1/development/dev-b608-concatenated-query/vulnerable.py"
+  },
+  "evidence": {
+    "baseline": "evidence/baseline.json",
+    "reference_fix": "evidence/reference_fix.json"
+  },
+  "bandit_version": "1.9.4",
+  "baseline_evidence": {
+    "command_argv": [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "bandit",
+      "-q",
+      "-f",
+      "json",
+      "-o",
+      "benchmarks/v1/development/dev-b608-concatenated-query/evidence/baseline.json",
+      "benchmarks/v1/development/dev-b608-concatenated-query/vulnerable.py"
+    ],
+    "exit_status": 1,
+    "errors": [],
+    "target_findings": [
+      {
+        "code": "3     cursor = connection.cursor()\n4     query = \"SELECT item_id FROM inventory WHERE item_id = '\" + item_id + \"'\"\n5     cursor.execute(query)\n",
+        "col_offset": 12,
+        "end_col_offset": 61,
+        "filename": ".\\benchmarks/v1/development/dev-b608-concatenated-query/vulnerable.py",
+        "issue_confidence": "LOW",
+        "issue_cwe": {
+          "id": 89,
+          "link": "https://cwe.mitre.org/data/definitions/89.html"
+        },
+        "issue_severity": "MEDIUM",
+        "issue_text": "Possible SQL injection vector through string-based query construction.",
+        "line_number": 4,
+        "line_range": [
+          4
+        ],
+        "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html",
+        "test_id": "B608",
+        "test_name": "hardcoded_sql_expressions"
+      }
+    ],
+    "all_findings": [
+      {
+        "code": "3     cursor = connection.cursor()\n4     query = \"SELECT item_id FROM inventory WHERE item_id = '\" + item_id + \"'\"\n5     cursor.execute(query)\n",
+        "col_offset": 12,
+        "end_col_offset": 61,
+        "filename": ".\\benchmarks/v1/development/dev-b608-concatenated-query/vulnerable.py",
+        "issue_confidence": "LOW",
+        "issue_cwe": {
+          "id": 89,
+          "link": "https://cwe.mitre.org/data/definitions/89.html"
+        },
+        "issue_severity": "MEDIUM",
+        "issue_text": "Possible SQL injection vector through string-based query construction.",
+        "line_number": 4,
+        "line_range": [
+          4
+        ],
+        "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html",
+        "test_id": "B608",
+        "test_name": "hardcoded_sql_expressions"
+      }
+    ],
+    "report": "evidence/baseline.json"
+  },
+  "proposed_post_fix_evidence": {
+    "command_argv": [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "bandit",
+      "-q",
+      "-f",
+      "json",
+      "-o",
+      "benchmarks/v1/development/dev-b608-concatenated-query/evidence/reference_fix.json",
+      "benchmarks/v1/development/dev-b608-concatenated-query/reference_fix.py"
+    ],
+    "exit_status": 0,
+    "errors": [],
+    "target_findings": [],
+    "all_findings": [],
+    "report": "evidence/reference_fix.json"
+  },
+  "reference_fix_approved_on": "2026-10-27",
+  "sql_paramstyle": {
+    "app.py::lookup_item": "qmark"
+  }
+}

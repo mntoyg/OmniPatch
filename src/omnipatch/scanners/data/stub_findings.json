@@ -1,0 +1,38 @@
+[
+  {
+    "id": "8179e86b7be4",
+    "rule_id": "B101",
+    "title": "Use of assert",
+    "severity": "low",
+    "file": "src/app.py",
+    "line_start": 10,
+    "line_end": 10,
+    "message": "Assert may be removed with optimization.",
+    "source": "stub",
+    "cwe": null
+  },
+  {
+    "id": "a40c4a10ede2",
+    "rule_id": "B608",
+    "title": "Possible SQL injection",
+    "severity": "high",
+    "file": "src/db.py",
+    "line_start": 22,
+    "line_end": 24,
+    "message": "SQL query uses string formatting.",
+    "source": "stub",
+    "cwe": "CWE-89"
+  },
+  {
+    "id": "ccee7e98f337",
+    "rule_id": "CVE-2024-1234",
+    "title": "Critical dependency issue",
+    "severity": "critical",
+    "file": "requirements.txt",
+    "line_start": 3,
+    "line_end": 3,
+    "message": "Dependency version is vulnerable.",
+    "source": "stub",
+    "cwe": "CWE-1104"
+  }
+]

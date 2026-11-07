@@ -1,0 +1,169 @@
+{
+  "case_id": "dev-b602-wrapper-call",
+  "split": "development",
+  "rule_id": "B602",
+  "vulnerable_source": "vulnerable.py",
+  "reference_fix_source": "reference_fix.py",
+  "reference_fix_status": "approved_by_owner",
+  "rationale": "The defined operation is printing the supplied value. The vulnerable helper concatenates that value into a printf shell command. The proposed fix uses sys.executable with a fixed Python print script and passes the value as a distinct argv element with shell=False, preserving the operation without depending on a platform-specific printf executable. Tests mock subprocess.run.",
+  "regression_test": "tests/benchmarks/test_development_cases.py::test_command_repairs_pass_user_input_as_argv",
+  "bandit_identity": {
+    "rule_id": "B602",
+    "relative_file": "benchmarks/v1/development/dev-b602-wrapper-call/vulnerable.py"
+  },
+  "evidence": {
+    "baseline": "evidence/baseline.json",
+    "reference_fix": "evidence/reference_fix.json"
+  },
+  "bandit_version": "1.9.4",
+  "baseline_evidence": {
+    "command_argv": [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "bandit",
+      "-q",
+      "-f",
+      "json",
+      "-o",
+      "benchmarks/v1/development/dev-b602-wrapper-call/evidence/baseline.json",
+      "benchmarks/v1/development/dev-b602-wrapper-call/vulnerable.py"
+    ],
+    "exit_status": 1,
+    "errors": [],
+    "target_findings": [
+      {
+        "code": "7     return subprocess.run(\n8         command, shell=True, check=False, capture_output=True, text=True\n9     )\n",
+        "col_offset": 11,
+        "end_col_offset": 5,
+        "filename": ".\\benchmarks/v1/development/dev-b602-wrapper-call/vulnerable.py",
+        "issue_confidence": "HIGH",
+        "issue_cwe": {
+          "id": 78,
+          "link": "https://cwe.mitre.org/data/definitions/78.html"
+        },
+        "issue_severity": "HIGH",
+        "issue_text": "subprocess call with shell=True identified, security issue.",
+        "line_number": 8,
+        "line_range": [
+          7,
+          8,
+          9
+        ],
+        "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+        "test_id": "B602",
+        "test_name": "subprocess_popen_with_shell_equals_true"
+      }
+    ],
+    "all_findings": [
+      {
+        "code": "1 import subprocess\n2 \n3 \n",
+        "col_offset": 0,
+        "end_col_offset": 17,
+        "filename": ".\\benchmarks/v1/development/dev-b602-wrapper-call/vulnerable.py",
+        "issue_confidence": "HIGH",
+        "issue_cwe": {
+          "id": 78,
+          "link": "https://cwe.mitre.org/data/definitions/78.html"
+        },
+        "issue_severity": "LOW",
+        "issue_text": "Consider possible security implications associated with the subprocess module.",
+        "line_number": 1,
+        "line_range": [
+          1
+        ],
+        "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+        "test_id": "B404",
+        "test_name": "blacklist"
+      },
+      {
+        "code": "7     return subprocess.run(\n8         command, shell=True, check=False, capture_output=True, text=True\n9     )\n",
+        "col_offset": 11,
+        "end_col_offset": 5,
+        "filename": ".\\benchmarks/v1/development/dev-b602-wrapper-call/vulnerable.py",
+        "issue_confidence": "HIGH",
+        "issue_cwe": {
+          "id": 78,
+          "link": "https://cwe.mitre.org/data/definitions/78.html"
+        },
+        "issue_severity": "HIGH",
+        "issue_text": "subprocess call with shell=True identified, security issue.",
+        "line_number": 8,
+        "line_range": [
+          7,
+          8,
+          9
+        ],
+        "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html",
+        "test_id": "B602",
+        "test_name": "subprocess_popen_with_shell_equals_true"
+      }
+    ],
+    "report": "evidence/baseline.json"
+  },
+  "proposed_post_fix_evidence": {
+    "command_argv": [
+      ".venv/Scripts/python.exe",
+      "-m",
+      "bandit",
+      "-q",
+      "-f",
+      "json",
+      "-o",
+      "benchmarks/v1/development/dev-b602-wrapper-call/evidence/reference_fix.json",
+      "benchmarks/v1/development/dev-b602-wrapper-call/reference_fix.py"
+    ],
+    "exit_status": 1,
+    "errors": [],
+    "target_findings": [],
+    "all_findings": [
+      {
+        "code": "1 import subprocess\n2 import sys\n3 \n",
+        "col_offset": 0,
+        "end_col_offset": 17,
+        "filename": ".\\benchmarks/v1/development/dev-b602-wrapper-call/reference_fix.py",
+        "issue_confidence": "HIGH",
+        "issue_cwe": {
+          "id": 78,
+          "link": "https://cwe.mitre.org/data/definitions/78.html"
+        },
+        "issue_severity": "LOW",
+        "issue_text": "Consider possible security implications associated with the subprocess module.",
+        "line_number": 1,
+        "line_range": [
+          1
+        ],
+        "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+        "test_id": "B404",
+        "test_name": "blacklist"
+      },
+      {
+        "code": "14         command,\n15         shell=False,\n16         check=False,\n17         capture_output=True,\n18         text=True,\n19     )\n",
+        "col_offset": 11,
+        "end_col_offset": 5,
+        "filename": ".\\benchmarks/v1/development/dev-b602-wrapper-call/reference_fix.py",
+        "issue_confidence": "HIGH",
+        "issue_cwe": {
+          "id": 78,
+          "link": "https://cwe.mitre.org/data/definitions/78.html"
+        },
+        "issue_severity": "LOW",
+        "issue_text": "subprocess call - check for execution of untrusted input.",
+        "line_number": 15,
+        "line_range": [
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+        "test_id": "B603",
+        "test_name": "subprocess_without_shell_equals_true"
+      }
+    ],
+    "report": "evidence/reference_fix.json"
+  },
+  "reference_fix_approved_on": "2026-10-27"
+}

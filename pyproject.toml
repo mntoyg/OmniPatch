@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "omnipatch"
+version = "0.1.0"
+description = "Headless CLI for generating security patches"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
+dependencies = [
+    "typer>=0.12",
+    "pydantic-settings>=2.0",
+    "anthropic>=2.3.0",
+    "pygithub>=2.10.0",
+]
+
+[project.scripts]
+omnipatch = "omnipatch.cli:app"
+
+[dependency-groups]
+dev = ["bandit>=1.9", "mypy>=1.10", "pytest>=8.0", "ruff>=0.5"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/omnipatch/scanners/data/stub_findings.json" = "omnipatch/scanners/data/stub_findings.json"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/omnipatch"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+markers = [
+    "integration: requires a real bandit subprocess",
+    "protected: requires deliberate opt-in because it evaluates holdout or contacts a live provider",
+    "holdout: accesses or evaluates frozen holdout inputs",
+    "live_provider: contacts Ollama or Anthropic",
+]
+addopts = ["-m", "not integration and not protected"]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+exclude = ["tests/fixtures"]
