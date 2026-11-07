@@ -148,8 +148,11 @@ def _is_sensitive_name(name: str) -> bool:
 
 def _sensitive_return_ranges(
     source: str,
-) -> list[tuple[tuple[int, int], tuple[int, int]]]:
-    """Find return expressions owned by functions with credential-like names."""
+) -> tuple[
+    list[tuple[tuple[int, int], tuple[int, int]]],
+    list[tuple[tuple[int, int], tuple[int, int]]],
+]:
+    """Find sensitive return expressions and their outer f-string spans."""
     source = textwrap.dedent(source)
     try:
         tree = ast.parse(source)
@@ -159,6 +162,7 @@ def _sensitive_return_ranges(
         ) from exc
 
     ranges: list[tuple[tuple[int, int], tuple[int, int]]] = []
+    joined_string_ranges: list[tuple[tuple[int, int], tuple[int, int]]] = []
 
     class ReturnVisitor(ast.NodeVisitor):
         """Track the function that directly owns each return statement."""
@@ -189,11 +193,30 @@ def _sensitive_return_ranges(
                     node.value.end_col_offset or 0,
                 )
                 ranges.append((start, end))
+                joined_string_ranges.extend(
+                    (
+                        (joined.lineno, joined.col_offset),
+                        (
+                            joined.end_lineno or joined.lineno,
+                            joined.end_col_offset or 0,
+                        ),
+                    )
+                    for joined in ast.walk(node.value)
+                    if isinstance(joined, ast.JoinedStr)
+                )
             self.generic_visit(node)
 
     visitor = ReturnVisitor()
     visitor.visit(tree)
-    return ranges
+    joined_string_ranges = [
+        span
+        for span in joined_string_ranges
+        if not any(
+            outer != span and outer[0] <= span[0] and span[1] <= outer[1]
+            for outer in joined_string_ranges
+        )
+    ]
+    return ranges, joined_string_ranges
 
 
 def _redact_return_token(token: tokenize.TokenInfo) -> str:
@@ -211,10 +234,25 @@ def _redact_return_token(token: tokenize.TokenInfo) -> str:
     return f"{prefix}{quote}{REDACTION_MARKER}{newlines}{quote}"
 
 
+def _redact_joined_string(source: str) -> str:
+    """Replace an AST f-string span, including its interpolation expressions."""
+    match = re.match(r"(?i)([rubf]*)(\"\"\"|'''|\"|')", source)
+    if match is None:
+        raise PatchGenerationError("Unable to safely redact a sensitive return value")
+    prefix, quote = match.groups()
+    if "f" not in prefix.casefold() or not source.endswith(quote):
+        raise PatchGenerationError("Unable to safely redact a sensitive return value")
+    body = source[match.end() : -len(quote)]
+    newlines = "".join(re.findall(r"\r\n|\r|\n", body))
+    if body == f"{REDACTION_MARKER}{newlines}":
+        return source
+    return f"{prefix}{quote}{REDACTION_MARKER}{newlines}{quote}"
+
+
 def redact_sensitive_returns(source: str) -> str:
     """Redact string tokens in return expressions owned by sensitive functions."""
     dedented_source = textwrap.dedent(source)
-    ranges = _sensitive_return_ranges(dedented_source)
+    ranges, joined_string_ranges = _sensitive_return_ranges(dedented_source)
     if not ranges:
         return source
     source_lines = source.splitlines(keepends=True)
@@ -236,7 +274,20 @@ def redact_sensitive_returns(source: str) -> str:
     normalized = [
         (ast_char_position(start), ast_char_position(end)) for start, end in ranges
     ]
+    joined_positions = [
+        (ast_char_position(start), ast_char_position(end))
+        for start, end in joined_string_ranges
+    ]
     replacements: list[tuple[int, int, str]] = []
+    for start, end in joined_positions:
+        source_start = (start[0], start[1] + removed_columns[start[0] - 1])
+        source_end = (end[0], end[1] + removed_columns[end[0] - 1])
+        start_offset = offsets[source_start[0] - 1] + source_start[1]
+        end_offset = offsets[source_end[0] - 1] + source_end[1]
+        original = source[start_offset:end_offset]
+        replacement = _redact_joined_string(original)
+        if replacement != original:
+            replacements.append((start_offset, end_offset, replacement))
     try:
         tokens = tokenize.generate_tokens(io.StringIO(source).readline)
         for token in tokens:
@@ -251,6 +302,11 @@ def redact_sensitive_returns(source: str) -> str:
                 max(0, token.end[1] - removed_columns[token.end[0] - 1]),
             )
             if any(
+                joined_start <= token_start and token_end <= joined_end
+                for joined_start, joined_end in joined_positions
+            ):
+                continue
+            if any(
                 start <= token_start and token_end <= end for start, end in normalized
             ):
                 start_offset = offsets[token.start[0] - 1] + token.start[1]
@@ -262,8 +318,8 @@ def redact_sensitive_returns(source: str) -> str:
         raise PatchGenerationError(
             "Unable to safely analyze context for sensitive return values"
         ) from exc
-    for start, end, replacement in reversed(replacements):
-        source = source[:start] + replacement + source[end:]
+    for start_offset, end_offset, replacement in reversed(replacements):
+        source = source[:start_offset] + replacement + source[end_offset:]
     return source
 
 
