@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import re
 import tomllib
 from importlib.metadata import Distribution, distributions
@@ -19,7 +20,7 @@ def _normalize(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
-def _locked_windows_packages() -> dict[str, dict[str, object]]:
+def _locked_supported_packages() -> dict[str, dict[str, object]]:
     lock = tomllib.loads(LOCK_PATH.read_text(encoding="utf-8"))
     packages = {
         _normalize(str(package["name"])): package
@@ -86,7 +87,7 @@ def _license_metadata(distribution: Distribution) -> str:
 
 
 def build_notice() -> bytes:
-    locked = _locked_windows_packages()
+    locked = _locked_supported_packages()
     installed: dict[str, Distribution] = {}
     for distribution in distributions():
         name = distribution.metadata.get("Name")
@@ -96,7 +97,7 @@ def build_notice() -> bytes:
         missing = sorted(set(locked) - set(installed))
         extra = sorted(set(installed) - set(locked))
         raise ValueError(
-            f"installed distributions do not match the locked Windows set; "
+            f"installed distributions do not match the locked Windows superset; "
             f"missing={missing}, extra={extra}"
         )
 
@@ -160,6 +161,66 @@ def build_notice() -> bytes:
     return b"".join(chunks)
 
 
+def _manifest_packages(content: bytes) -> set[tuple[str, str]]:
+    text = content.decode("utf-8")
+    manifest = text.split("\n## License and notice file contents", maxsplit=1)[0]
+    return {
+        (_normalize(match.group(1).strip()), match.group(2).strip())
+        for line in manifest.splitlines()
+        if not line.startswith(("| Distribution", "|---"))
+        if (match := re.match(r"\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|", line))
+    }
+
+
+def _check_notice() -> None:
+    if not NOTICE_PATH.is_file():
+        raise SystemExit("THIRD_PARTY_NOTICES.md is missing")
+    current = NOTICE_PATH.read_bytes()
+    locked = _locked_supported_packages()
+    if _manifest_packages(current) != {
+        (name, str(package["version"])) for name, package in locked.items()
+    }:
+        raise SystemExit(
+            "third-party notice package/version list does not match uv.lock"
+        )
+
+    installed: dict[str, Distribution] = {}
+    for distribution in distributions():
+        name = distribution.metadata.get("Name")
+        if name and _normalize(name) != "omnipatch":
+            installed[_normalize(name)] = distribution
+    extra = sorted(set(installed) - set(locked))
+    if extra:
+        raise SystemExit(f"installed packages are absent from uv.lock: {extra}")
+
+    missing_assets: list[str] = []
+    for normalized_name, distribution in installed.items():
+        locked_version = str(locked[normalized_name]["version"])
+        if distribution.version != locked_version:
+            raise SystemExit(
+                f"version mismatch for {normalized_name}: "
+                f"lock={locked_version}, installed={distribution.version}"
+            )
+        for path, content, digest in _license_files(distribution):
+            heading = f"#### `{path}`".encode()
+            checksum = f"<!-- SHA-256: {digest} -->".encode()
+            if (
+                heading not in current
+                or checksum not in current
+                or content not in current
+            ):
+                missing_assets.append(f"{distribution.metadata['Name']}:{path}")
+    if missing_assets:
+        raise SystemExit(
+            "third-party notices omit locked artifact license/notice files: "
+            + ", ".join(missing_assets)
+        )
+    print(
+        f"Notice covers all {len(installed)} installed locked distributions and "
+        "their license/notice files."
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -168,14 +229,12 @@ def main() -> int:
         help="fail if the checked-in notice differs from the installed locked artifacts",
     )
     args = parser.parse_args()
-    generated = build_notice()
     if args.check:
-        if not NOTICE_PATH.is_file() or NOTICE_PATH.read_bytes() != generated:
-            raise SystemExit(
-                "THIRD_PARTY_NOTICES.md is not synchronized with locked artifacts"
-            )
-        print("Third-party notices match the installed locked distributions.")
+        _check_notice()
         return 0
+    if os.name != "nt":
+        raise SystemExit("Regenerate the combined supported-platform notice on Windows")
+    generated = build_notice()
     NOTICE_PATH.write_bytes(generated)
     print(f"Wrote {NOTICE_PATH.name} ({len(generated)} bytes).")
     return 0
