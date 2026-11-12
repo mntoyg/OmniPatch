@@ -46,8 +46,8 @@ Before preparing a release candidate:
 5. Export and verify the hash-pinned runtime dependency set from the same lock:
 
    ```sh
-   uv export --locked --no-dev --no-emit-project --format requirements.txt --no-header --no-annotate --output-file dist/runtime-requirements.txt
-   uv run --frozen python scripts/verify-runtime-requirements.py dist/runtime-requirements.txt
+   uv export --locked --no-dev --no-emit-project --format requirements.txt --no-header --no-annotate --output-file dist/requirements-runtime.txt
+   uv run --frozen python scripts/verify-runtime-requirements.py dist/requirements-runtime.txt
    ```
 
 6. Inspect the Python sdist (`*.tar.gz`) against the approved public file boundary. Confirm it contains the
@@ -55,7 +55,7 @@ Before preparing a release candidate:
    private history, credentials, and internal-only instructions. Record the artifact filenames and
    SHA-256 digests.
 7. Install the wheel in clean Windows and Linux environments using
-   `dist/runtime-requirements.txt` with hash checking, install the wheel with `--no-deps`, run
+   `dist/requirements-runtime.txt` with hash checking, install the wheel with `--no-deps`, run
    `uv pip check --python <venv-python>`, and run `scripts/smoke-installed-wheel.py` against the
    synthetic fixture. Use the platform's venv interpreter path shown in the CI workflow. Run the
    same default and safe integration CI gates on the exact release-candidate commit.
