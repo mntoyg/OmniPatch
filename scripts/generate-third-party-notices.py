@@ -9,6 +9,7 @@ import re
 import tomllib
 from importlib.metadata import Distribution, distributions
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_PATH = ROOT / "uv.lock"
@@ -38,6 +39,24 @@ def _locked_supported_packages() -> dict[str, dict[str, object]]:
         for name, package in packages.items()
         if name not in emscripten_only
     }
+
+
+def _source_artifact(package: dict[str, object]) -> tuple[str, str]:
+    sdist = package.get("sdist")
+    if not isinstance(sdist, dict):
+        raise TypeError(f"locked package has no source distribution: {package['name']}")
+    url = str(sdist.get("url", ""))
+    digest = str(sdist.get("hash", ""))
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "files.pythonhosted.org"
+        or parsed.username is not None
+        or parsed.password is not None
+        or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
+    ):
+        raise ValueError(f"invalid locked source artifact for {package['name']}")
+    return url, digest.removeprefix("sha256:")
 
 
 def _license_files(distribution: Distribution) -> list[tuple[str, bytes, str]]:
@@ -101,7 +120,7 @@ def build_notice() -> bytes:
             f"missing={missing}, extra={extra}"
         )
 
-    records: list[tuple[str, str, str, list[tuple[str, bytes, str]]]] = []
+    records: list[tuple[str, str, str, str, str, list[tuple[str, bytes, str]]]] = []
     for normalized_name, distribution in installed.items():
         locked_version = str(locked[normalized_name]["version"])
         if distribution.version != locked_version:
@@ -114,6 +133,7 @@ def build_notice() -> bytes:
                 distribution.metadata.get("Name", normalized_name),
                 distribution.version,
                 _license_metadata(distribution),
+                *_source_artifact(locked[normalized_name]),
                 _license_files(distribution),
             )
         )
@@ -125,18 +145,19 @@ def build_notice() -> bytes:
             "This file aggregates the license and notice files shipped inside the locked "
             "third-party distributions used by the supported Windows/Linux environment. "
             "Package versions are pinned in `uv.lock`; artifact URLs and SHA-256 hashes are "
-            "recorded there. Contents are copied verbatim from the installed distribution files. "
+            "recorded there. Each source archive link and hash below comes from that lockfile. "
+            "License/notice contents are copied verbatim from installed distributions. "
             "Where supported-platform artifacts differ only in line endings, both exact variants "
             "are included. "
             "This inventory is technical evidence, not a legal determination of redistribution "
             "obligations. The Emscripten-only `httpx2-jsfetch` dependency is excluded because "
             "Emscripten is not a supported runtime platform.\n\n"
             f"Included locked third-party distributions: {len(records)}.\n\n"
-            "| Distribution | Version | License metadata | Included files |\n"
-            "|---|---:|---|---|\n"
+            "| Distribution | Version | License metadata | Locked source archive | Source SHA-256 | Included files |\n"
+            "|---|---:|---|---|---|---|\n"
         ).encode()
     ]
-    for name, version, declared, files in records:
+    for name, version, declared, source_url, source_digest, files in records:
         entries: list[str] = []
         for path, content, _digest in files:
             entries.append(f"`{path}`")
@@ -145,10 +166,13 @@ def build_notice() -> bytes:
         paths = ", ".join(entries)
         paths = paths.replace("|", r"\|")
         declared = declared.replace("|", r"\|")
-        chunks.append(f"| {name} | {version} | {declared} | {paths} |\n".encode())
+        chunks.append(
+            f"| {name} | {version} | {declared} | [sdist]({source_url}) | "
+            f"`{source_digest}` | {paths} |\n".encode()
+        )
 
     chunks.append(b"\n## License and notice file contents\n")
-    for name, version, _declared, files in records:
+    for name, version, _declared, _source_url, _source_digest, files in records:
         chunks.append(f"\n### {name} {version}\n".encode())
         for path, content, digest in files:
             variants = [(path, content, digest)]
@@ -195,6 +219,27 @@ def _manifest_packages(content: bytes) -> set[tuple[str, str]]:
     }
 
 
+def _manifest_source_artifacts(content: bytes) -> dict[str, tuple[str, str, str]]:
+    text = content.decode("utf-8")
+    manifest = text.split("\n## License and notice file contents", maxsplit=1)[0]
+    artifacts: dict[str, tuple[str, str, str]] = {}
+    for line in manifest.splitlines():
+        if not line.startswith("|") or line.startswith(("| Distribution", "|---")):
+            continue
+        columns = [column.strip() for column in line.strip("|").split("|")]
+        if len(columns) != 6:
+            continue
+        name, version, _license, source_link, digest, _files = columns
+        match = re.fullmatch(
+            r"\[sdist\]\((https://files\.pythonhosted\.org/[^)]+)\)", source_link
+        )
+        digest_match = re.fullmatch(r"`([0-9a-f]{64})`", digest)
+        if not match or not digest_match:
+            continue
+        artifacts[_normalize(name)] = (version, match.group(1), digest_match.group(1))
+    return artifacts
+
+
 def _check_notice() -> None:
     if not NOTICE_PATH.is_file():
         raise SystemExit("THIRD_PARTY_NOTICES.md is missing")
@@ -206,6 +251,12 @@ def _check_notice() -> None:
         raise SystemExit(
             "third-party notice package/version list does not match uv.lock"
         )
+    expected_sources = {
+        name: (str(package["version"]), *_source_artifact(package))
+        for name, package in locked.items()
+    }
+    if _manifest_source_artifacts(current) != expected_sources:
+        raise SystemExit("third-party notice source artifacts do not match uv.lock")
 
     installed: dict[str, Distribution] = {}
     for distribution in distributions():
