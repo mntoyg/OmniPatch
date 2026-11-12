@@ -27,17 +27,46 @@ jobs:
       - name: Verify scanner detects a synthetic canary
         run: |
           go version
-          canary_prefix='ghp_0123456789ABCDEFGH'
-          canary_suffix='IJKLMNOPQRSTUVWXYZ'
-          set +e
-          canary_output="$(printf 'GITLEAKS_TEST_ONLY_DO_NOT_USE=%s%s\n' "$canary_prefix" "$canary_suffix" | go run github.com/gitleaks/gitleaks/v8@v8.29.1 stdin --redact=100 --no-banner 2>&1)"
-          canary_status=$?
-          set -e
-          if [ "$canary_status" -eq 0 ] || ! printf '%s\n' "$canary_output" | grep -q 'leaks found'; then
-            echo "Gitleaks failed to detect the synthetic canary."
-            exit 1
-          fi
-          echo "Gitleaks detected the synthetic canary; output was redacted."
+          python - <<'PY'
+          import pathlib
+          import subprocess
+          import sys
+          import tempfile
+
+          synthetic_canary = (
+              "GITLEAKS_TEST_ONLY_DO_NOT_USE=ghp_0123456789ABCDEFGH"
+              "IJKLMNOPQRSTUVWXYZ"
+          )
+          with tempfile.TemporaryDirectory(prefix="omnipatch-gitleaks-") as temp_dir:
+              canary_file = pathlib.Path(temp_dir) / "synthetic-canary.txt"
+              canary_file.write_text(synthetic_canary, encoding="utf-8")
+              result = subprocess.run(
+                  [
+                      "go",
+                      "run",
+                      "github.com/gitleaks/gitleaks/v8@v8.29.1",
+                      "dir",
+                      "--redact=100",
+                      "--no-banner",
+                      temp_dir,
+                  ],
+                  capture_output=True,
+                  check=False,
+                  text=True,
+                  timeout=120,
+              )
+
+          output = result.stdout + result.stderr
+          if (
+              result.returncode == 0
+              or "github-pat" not in output
+              or "leaks found" not in output
+              or synthetic_canary in output
+          ):
+              print("Gitleaks synthetic canary detection/redaction check failed.")
+              sys.exit(1)
+          print("Gitleaks detected the synthetic canary; output was redacted.")
+          PY
 
       - name: Scan working tree and full Git history
         run: |
