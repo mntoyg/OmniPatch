@@ -34,7 +34,7 @@ jobs:
           import tempfile
 
           synthetic_canary = (
-              "GITLEAKS_TEST_ONLY_DO_NOT_USE=ghp_0123456789ABCDEFGH"
+              "SELF_LABEL_NO_AUTH_PLACEHOLDER=ghp_0123456789ABCDEFGH"
               "IJKLMNOPQRSTUVWXYZ"
           )
           with tempfile.TemporaryDirectory(prefix="omnipatch-gitleaks-") as temp_dir:
@@ -58,7 +58,7 @@ jobs:
 
           output = result.stdout + result.stderr
           has_rule = "github-pat" in output
-          has_finding_summary = "leaks found" in output
+          has_finding_summary = "leaks found:" in output and "no leaks found" not in output
           is_redacted = synthetic_canary not in output
           if (
               result.returncode == 0
