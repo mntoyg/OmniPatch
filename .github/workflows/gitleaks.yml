@@ -29,13 +29,14 @@ jobs:
           go version
           python - <<'PY'
           import pathlib
+          import secrets
+          import string
           import subprocess
           import sys
           import tempfile
 
-          synthetic_canary = (
-              "SELF_LABEL_NO_AUTH_PLACEHOLDER=ghp_0123456789ABCDEFGH"
-              "IJKLMNOPQRSTUVWXYZ"
+          synthetic_canary = "SELF_LABEL_NO_AUTH_PLACEHOLDER=ghp_" + "".join(
+              secrets.choice(string.ascii_letters + string.digits) for _ in range(36)
           )
           with tempfile.TemporaryDirectory(prefix="omnipatch-gitleaks-") as temp_dir:
               canary_file = pathlib.Path(temp_dir) / "synthetic-canary.txt"
