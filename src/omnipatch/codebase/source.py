@@ -28,6 +28,27 @@ def capture_source_root(repo_root: Path) -> tuple[Path, tuple[int, int]]:
     identity = (before.st_dev, before.st_ino)
     if identity != (after.st_dev, after.st_ino) or not stat.S_ISDIR(after.st_mode):
         raise PatchGenerationError("Repository root changed while resolving")
+    if os.name == "nt":
+        handle: int | None = None
+        try:
+            handle = _open_windows_handle(_extended_path(str(root)), directory=True)
+            info = _windows_file_info(handle)
+            current = root.stat()
+            if (
+                not _is_windows_directory(info)
+                or _is_windows_reparse_point(info)
+                or not _same_windows_path(_windows_handle_path(handle), str(root))
+                or (current.st_dev, current.st_ino) != identity
+            ):
+                raise PatchGenerationError("Repository root changed while opening")
+            identity = _windows_file_identity(info)
+        except PatchGenerationError:
+            raise
+        except OSError as exc:
+            raise PatchGenerationError("Unable to safely open repository root") from exc
+        finally:
+            if handle is not None:
+                _close_windows_handle(handle)
     return root, identity
 
 

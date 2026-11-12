@@ -122,6 +122,15 @@ def test_read_finding_source_rejects_symlink_swapped_before_open(
             return real_open(path, directory=directory)
 
         monkeypatch.setattr(source_module, "_open_windows_handle", swap_windows_open)
+    elif source_module.sys.platform == "linux":
+        real_openat2 = source_module._openat2_source
+
+        def swap_openat2(root_fd: int, relative_path: bytes, flags: int) -> int:
+            if relative_path == b"app.py":
+                swap_target()
+            return real_openat2(root_fd, relative_path, flags)
+
+        monkeypatch.setattr(source_module, "_openat2_source", swap_openat2)
     else:
         real_open = source_module._open_posix
 
