@@ -6,9 +6,10 @@ source archive. Do not treat a CI green run as release approval.
 
 ## Release gates
 
-Before creating a tag or release:
+Before preparing a release candidate:
 
-- Confirm all P0 readiness items in `TASK.md` are closed for the exact candidate commit.
+
+- Confirm all P0 readiness items in `TASK.md` are closed before versioning the release candidate.
 - Confirm branch protection and required checks with a repository administrator.
 - Record the scoped third-party license and notice review for both source and wheel distribution.
 - Record TL/SE review and the authorized pilot results, including limitations.
@@ -17,19 +18,23 @@ Before creating a tag or release:
 
 ## Build and verify artifacts
 
-1. Choose the version only after the release gates are complete. Update `project.version` in
-   `pyproject.toml` and refresh `uv.lock`. The CI wheel smoke steps currently name
-   `omnipatch-0.1.0-py3-none-any.whl`; update that version reference or make it version-independent
-   before changing the package version.
-2. From the reviewed release commit, install the locked development dependencies and build both
-   source and wheel artifacts:
+1. Choose the intended version, update `project.version` in `pyproject.toml`, and refresh
+   `uv.lock`. The CI wheel smoke steps currently name `omnipatch-0.1.0-py3-none-any.whl`; update
+   that version reference or make it version-independent before changing the package version.
+2. Treat the versioned commit as a new release candidate. Before tagging it, rerun the full required
+   CI matrix, Gitleaks, and dependency audit on that exact commit. Reconfirm that third-party
+   sign-off, TL/SE review, and pilot evidence cover the exact source and wheel candidate being
+   released; obtain updated approvals if the versioning change affects their scope.
+3. From the reviewed release commit, install the locked development dependencies and build both
+   the Python source distribution (sdist, `*.tar.gz`) and wheel artifacts. GitHub's automatically
+   generated source ZIP/tarball for a tag is separate from the Python sdist:
 
    ```sh
    uv sync --locked --all-groups
    uv build --sdist --wheel --out-dir dist
    ```
 
-3. Check that generated notices match the lock and verify the wheel includes the project and
+4. Check that generated notices match the lock and verify the wheel includes the project and
    third-party notices:
 
    ```sh
@@ -37,21 +42,22 @@ Before creating a tag or release:
    uv run --frozen python scripts/verify-wheel-notices.py dist
    ```
 
-4. Export and verify the hash-pinned runtime dependency set from the same lock:
+5. Export and verify the hash-pinned runtime dependency set from the same lock:
 
    ```sh
    uv export --locked --no-dev --no-emit-project --format requirements.txt --no-header --no-annotate --output-file dist/runtime-requirements.txt
    uv run --frozen python scripts/verify-runtime-requirements.py dist/runtime-requirements.txt
    ```
 
-5. Inspect the source archive against the approved public file boundary. Confirm it contains the
+6. Inspect the Python sdist (`*.tar.gz`) against the approved public file boundary. Confirm it contains the
    project license, notice, documentation, and required source files, and excludes holdout data,
    private history, credentials, and internal-only instructions. Record the artifact filenames and
    SHA-256 digests.
-6. Install the wheel in clean Windows and Linux environments using
+7. Install the wheel in clean Windows and Linux environments using
    `dist/runtime-requirements.txt` with hash checking, install the wheel with `--no-deps`, run
-   `pip check`, and run `scripts/smoke-installed-wheel.py` against the synthetic fixture. Run the
-   same default and safe integration CI gates on the tagged commit.
+   `uv pip check --python <venv-python>`, and run `scripts/smoke-installed-wheel.py` against the
+   synthetic fixture. Use the platform's venv interpreter path shown in the CI workflow. Run the
+   same default and safe integration CI gates on the exact release-candidate commit.
 
 ## Publish and preserve evidence
 
