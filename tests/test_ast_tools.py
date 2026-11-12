@@ -318,7 +318,9 @@ def _synthetic_private_key_case() -> tuple[str, str]:
 @pytest.mark.parametrize(
     ("source", "secret"),
     [
-        pytest.param(*_synthetic_assignment("PASSWORD", '"'), id="password-double-quoted"),
+        pytest.param(
+            *_synthetic_assignment("PASSWORD", '"'), id="password-double-quoted"
+        ),
         pytest.param(*_synthetic_assignment("TOKEN", "'"), id="token-single-quoted-1"),
         pytest.param(*_synthetic_assignment("TOKEN", "'"), id="token-single-quoted-2"),
         pytest.param(*_synthetic_assignment("TOKEN", "'"), id="token-single-quoted-3"),
