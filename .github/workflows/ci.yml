@@ -35,6 +35,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
+          version: "0.13.7"
           enable-cache: true
           cache-dependency-glob: uv.lock
 
@@ -48,6 +49,28 @@ jobs:
         run: |
           uv build --wheel --out-dir dist
           uv run --frozen python scripts/verify-wheel-notices.py dist
+
+      - name: Export locked runtime requirements and create clean environment
+        run: |
+          uv export --locked --no-dev --no-emit-project --format requirements.txt --no-header --no-annotate --output-file dist/runtime-requirements.txt
+          uv run --frozen python scripts/verify-runtime-requirements.py dist/runtime-requirements.txt
+          uv venv --python ${{ matrix.python-version }} dist/wheel-smoke
+
+      - name: Install and smoke-test built wheel (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          uv pip sync --python dist/wheel-smoke/bin/python --require-hashes dist/runtime-requirements.txt
+          uv pip install --python dist/wheel-smoke/bin/python --no-deps dist/omnipatch-0.1.0-py3-none-any.whl
+          uv pip check --python dist/wheel-smoke/bin/python
+          dist/wheel-smoke/bin/python scripts/smoke-installed-wheel.py dist/wheel-smoke/bin/omnipatch tests/fixtures/vulnerable_app
+
+      - name: Install and smoke-test built wheel (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          uv pip sync --python dist/wheel-smoke/Scripts/python.exe --require-hashes dist/runtime-requirements.txt
+          uv pip install --python dist/wheel-smoke/Scripts/python.exe --no-deps dist/omnipatch-0.1.0-py3-none-any.whl
+          uv pip check --python dist/wheel-smoke/Scripts/python.exe
+          dist/wheel-smoke/Scripts/python.exe scripts/smoke-installed-wheel.py dist/wheel-smoke/Scripts/omnipatch.exe tests/fixtures/vulnerable_app
 
       - name: Run default test suite
         run: uv run --frozen python -m pytest -q
