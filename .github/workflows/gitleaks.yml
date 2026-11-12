@@ -44,7 +44,7 @@ jobs:
                   [
                       "go",
                       "run",
-                      "github.com/gitleaks/gitleaks/v8@v8.29.1",
+                      "github.com/zricethezav/gitleaks/v8@v8.29.1",
                       "dir",
                       "--redact=100",
                       "--no-banner",
@@ -80,6 +80,6 @@ jobs:
 
       - name: Scan working tree and full Git history
         run: |
-          go run github.com/gitleaks/gitleaks/v8@v8.29.1 dir --redact=100 --no-banner .
-          go run github.com/gitleaks/gitleaks/v8@v8.29.1 git --redact=100 --no-banner --log-opts="--full-history --all --diff-filter=tuxdb" .
+          go run github.com/zricethezav/gitleaks/v8@v8.29.1 dir --redact=100 --no-banner .
+          go run github.com/zricethezav/gitleaks/v8@v8.29.1 git --redact=100 --no-banner --log-opts="--full-history --all --diff-filter=tuxdb" .
 
