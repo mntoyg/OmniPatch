@@ -4,6 +4,7 @@ Every fixture secret here is self-labelling, as `AGENTS.md` section 2 requires.
 """
 
 import ast
+import secrets
 import textwrap
 from pathlib import Path, PurePosixPath
 
@@ -14,7 +15,7 @@ from omnipatch.codebase.ast_tools import extract_context
 from omnipatch.codebase.redaction import REDACTION_MARKER, redact
 from omnipatch.models import Finding, Severity
 
-SECRET = "hunter2-SYNTHETIC"
+SECRET = secrets.token_urlsafe(24)  # Synthetic test value; no live credential.
 
 
 def parses(source: str) -> bool:
@@ -160,3 +161,4 @@ def test_real_f_string_context_survives_the_whole_boundary(tmp_path: Path) -> No
     context = extract_context(make_finding("sample.py", 2), tmp_path)
     assert SECRET not in context.snippet
     assert parses(context.snippet)
+
