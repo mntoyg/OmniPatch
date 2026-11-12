@@ -1,0 +1,46 @@
+name: Gitleaks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitleaks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify scanner detects a synthetic canary
+        run: |
+          go version
+          canary_prefix='ghp_0123456789ABCDEFGH'
+          canary_suffix='IJKLMNOPQRSTUVWXYZ'
+          set +e
+          canary_output="$(printf 'GITLEAKS_TEST_ONLY_DO_NOT_USE=%s%s\n' "$canary_prefix" "$canary_suffix" | go run github.com/gitleaks/gitleaks/v8@v8.29.1 stdin --redact=100 --no-banner 2>&1)"
+          canary_status=$?
+          set -e
+          if [ "$canary_status" -eq 0 ] || ! printf '%s\n' "$canary_output" | grep -q 'leaks found'; then
+            echo "Gitleaks failed to detect the synthetic canary."
+            exit 1
+          fi
+          echo "Gitleaks detected the synthetic canary; output was redacted."
+
+      - name: Scan working tree and full Git history
+        run: |
+          go run github.com/gitleaks/gitleaks/v8@v8.29.1 dir --redact=100 --no-banner .
+          go run github.com/gitleaks/gitleaks/v8@v8.29.1 git --redact=100 --no-banner --log-opts="--full-history --all --diff-filter=tuxdb" .
+
