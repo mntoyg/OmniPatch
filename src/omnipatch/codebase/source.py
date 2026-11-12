@@ -148,10 +148,10 @@ def _read_posix(
             descriptors.append(source_fd)
             if not stat.S_ISREG(os.fstat(source_fd).st_mode):
                 raise PatchGenerationError("Finding source is not a regular file")
-            chunks: list[bytes] = []
+            linux_chunks: list[bytes] = []
             while chunk := os.read(source_fd, 65536):
-                chunks.append(chunk)
-            return b"".join(chunks)
+                linux_chunks.append(chunk)
+            return b"".join(linux_chunks)
 
         parent_fd = root_fd
         for part in parts[:-1]:

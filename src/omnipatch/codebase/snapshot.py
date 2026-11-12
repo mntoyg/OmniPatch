@@ -138,8 +138,11 @@ class RepositorySnapshot:
                 )
             if self.root is None:
                 raise PatchGenerationError("Repository snapshot was not created")
-            info = self.root.stat()
-            self.root_identity = (info.st_dev, info.st_ino)
+            if os.name == "nt":
+                _, self.root_identity = capture_source_root(self.root)
+            else:
+                info = self.root.stat()
+                self.root_identity = (info.st_dev, info.st_ino)
             self.report = SnapshotReport(
                 tuple(self._notices), self._entries, self._bytes
             )
