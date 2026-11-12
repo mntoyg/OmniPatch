@@ -161,4 +161,3 @@ def test_real_f_string_context_survives_the_whole_boundary(tmp_path: Path) -> No
     context = extract_context(make_finding("sample.py", 2), tmp_path)
     assert SECRET not in context.snippet
     assert parses(context.snippet)
-

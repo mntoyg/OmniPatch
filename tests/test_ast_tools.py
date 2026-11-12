@@ -354,4 +354,3 @@ def test_code_context_json_contains_every_field(tmp_path: Path) -> None:
         "symbol": None,
         "imports": ["import os"],
     }
-

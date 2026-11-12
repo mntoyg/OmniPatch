@@ -102,4 +102,3 @@ def test_multiline_sensitive_assignment_preserves_line_count() -> None:
     assert "third-line" not in result
     assert result.count("\n") == source.count("\n")
     assert redact(result) == result
-
