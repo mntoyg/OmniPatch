@@ -1,0 +1,185 @@
+"""Generate notices from the locked third-party distributions installed in the venv."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import re
+import tomllib
+from importlib.metadata import Distribution, distributions
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+LOCK_PATH = ROOT / "uv.lock"
+NOTICE_PATH = ROOT / "THIRD_PARTY_NOTICES.md"
+_CODE_SUFFIXES = {".c", ".h", ".js", ".json", ".py", ".pyi", ".toml", ".yaml", ".yml"}
+
+
+def _normalize(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _locked_windows_packages() -> dict[str, dict[str, object]]:
+    lock = tomllib.loads(LOCK_PATH.read_text(encoding="utf-8"))
+    packages = {
+        _normalize(str(package["name"])): package
+        for package in lock["package"]
+        if package["name"] != "omnipatch"
+    }
+    emscripten_only = {
+        _normalize(str(dependency["name"]))
+        for package in lock["package"]
+        for dependency in package.get("dependencies", [])
+        if "sys_platform == 'emscripten'" in dependency.get("marker", "")
+    }
+    return {
+        name: package
+        for name, package in packages.items()
+        if name not in emscripten_only
+    }
+
+
+def _license_files(distribution: Distribution) -> list[tuple[str, bytes, str]]:
+    site_packages = Path(distribution.locate_file("")).resolve(strict=True)
+    files: list[tuple[str, bytes, str]] = []
+    for item in distribution.files or ():
+        relative = Path(str(item))
+        basename = relative.name.lower()
+        if not basename.startswith(("license", "copying", "notice")):
+            continue
+        if relative.suffix.lower() in _CODE_SUFFIXES:
+            continue
+        if ".." in relative.parts:
+            raise ValueError(
+                f"unsafe license file path in package metadata: {relative}"
+            )
+        source = Path(distribution.locate_file(item)).resolve(strict=True)
+        source.relative_to(site_packages)
+        if not source.is_file():
+            continue
+        content = source.read_bytes()
+        content.decode("utf-8-sig", errors="strict")
+        files.append(
+            (
+                relative.as_posix(),
+                content,
+                hashlib.sha256(content).hexdigest(),
+            )
+        )
+    if not files:
+        name = distribution.metadata.get("Name", "unknown distribution")
+        raise ValueError(f"no license or notice files found for {name}")
+    return sorted(files, key=lambda item: item[0].casefold())
+
+
+def _license_metadata(distribution: Distribution) -> str:
+    metadata = distribution.metadata
+    declared = metadata.get("License-Expression") or metadata.get("License") or ""
+    classifiers = [
+        classifier.removeprefix("License :: ")
+        for classifier in metadata.get_all("Classifier", [])
+        if classifier.startswith("License :: ")
+    ]
+    if not declared and classifiers:
+        declared = "; ".join(classifiers)
+    return declared or "No SPDX/License field; see included text"
+
+
+def build_notice() -> bytes:
+    locked = _locked_windows_packages()
+    installed: dict[str, Distribution] = {}
+    for distribution in distributions():
+        name = distribution.metadata.get("Name")
+        if name and _normalize(name) != "omnipatch":
+            installed[_normalize(name)] = distribution
+    if set(installed) != set(locked):
+        missing = sorted(set(locked) - set(installed))
+        extra = sorted(set(installed) - set(locked))
+        raise ValueError(
+            f"installed distributions do not match the locked Windows set; "
+            f"missing={missing}, extra={extra}"
+        )
+
+    records: list[tuple[str, str, str, list[tuple[str, bytes, str]]]] = []
+    for normalized_name, distribution in installed.items():
+        locked_version = str(locked[normalized_name]["version"])
+        if distribution.version != locked_version:
+            raise ValueError(
+                f"version mismatch for {normalized_name}: "
+                f"lock={locked_version}, installed={distribution.version}"
+            )
+        records.append(
+            (
+                distribution.metadata.get("Name", normalized_name),
+                distribution.version,
+                _license_metadata(distribution),
+                _license_files(distribution),
+            )
+        )
+    records.sort(key=lambda record: record[0].casefold())
+
+    chunks = [
+        (
+            "# Third-party notices\n\n"
+            "This file aggregates the license and notice files shipped inside the locked "
+            "third-party distributions used by the supported Windows/Linux environment. "
+            "Package versions are pinned in `uv.lock`; artifact URLs and SHA-256 hashes are "
+            "recorded there. Contents are copied verbatim from the installed distribution files. "
+            "This inventory is technical evidence, not a legal determination of redistribution "
+            "obligations. The Emscripten-only `httpx2-jsfetch` dependency is excluded because "
+            "Emscripten is not a supported runtime platform.\n\n"
+            f"Included locked third-party distributions: {len(records)}.\n\n"
+            "| Distribution | Version | License metadata | Included files |\n"
+            "|---|---:|---|---|\n"
+        ).encode()
+    ]
+    for name, version, declared, files in records:
+        paths = ", ".join(f"`{path}`" for path, _content, _digest in files)
+        paths = paths.replace("|", r"\|")
+        declared = declared.replace("|", r"\|")
+        chunks.append(f"| {name} | {version} | {declared} | {paths} |\n".encode())
+
+    chunks.append(b"\n## License and notice file contents\n")
+    for name, version, _declared, files in records:
+        chunks.append(f"\n### {name} {version}\n".encode())
+        for path, content, digest in files:
+            chunks.append(f"\n#### `{path}`\n\n<!-- SHA-256: {digest} -->\n\n".encode())
+            fence_length = max(
+                3,
+                max(
+                    (len(match.group(0)) for match in re.finditer(rb"`+", content)),
+                    default=0,
+                )
+                + 1,
+            )
+            fence = b"`" * fence_length
+            chunks.extend((fence + b"text\n", content))
+            if not content.endswith((b"\n", b"\r")):
+                chunks.append(b"\n")
+            chunks.append(fence + b"\n")
+    return b"".join(chunks)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="fail if the checked-in notice differs from the installed locked artifacts",
+    )
+    args = parser.parse_args()
+    generated = build_notice()
+    if args.check:
+        if not NOTICE_PATH.is_file() or NOTICE_PATH.read_bytes() != generated:
+            raise SystemExit(
+                "THIRD_PARTY_NOTICES.md is not synchronized with locked artifacts"
+            )
+        print("Third-party notices match the installed locked distributions.")
+        return 0
+    NOTICE_PATH.write_bytes(generated)
+    print(f"Wrote {NOTICE_PATH.name} ({len(generated)} bytes).")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
