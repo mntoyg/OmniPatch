@@ -126,6 +126,8 @@ def build_notice() -> bytes:
             "third-party distributions used by the supported Windows/Linux environment. "
             "Package versions are pinned in `uv.lock`; artifact URLs and SHA-256 hashes are "
             "recorded there. Contents are copied verbatim from the installed distribution files. "
+            "Where supported-platform artifacts differ only in line endings, both exact variants "
+            "are included. "
             "This inventory is technical evidence, not a legal determination of redistribution "
             "obligations. The Emscripten-only `httpx2-jsfetch` dependency is excluded because "
             "Emscripten is not a supported runtime platform.\n\n"
@@ -135,7 +137,12 @@ def build_notice() -> bytes:
         ).encode()
     ]
     for name, version, declared, files in records:
-        paths = ", ".join(f"`{path}`" for path, _content, _digest in files)
+        entries: list[str] = []
+        for path, content, _digest in files:
+            entries.append(f"`{path}`")
+            if b"\r\n" in content:
+                entries.append(f"`{path} [LF line endings]`")
+        paths = ", ".join(entries)
         paths = paths.replace("|", r"\|")
         declared = declared.replace("|", r"\|")
         chunks.append(f"| {name} | {version} | {declared} | {paths} |\n".encode())
@@ -144,20 +151,36 @@ def build_notice() -> bytes:
     for name, version, _declared, files in records:
         chunks.append(f"\n### {name} {version}\n".encode())
         for path, content, digest in files:
-            chunks.append(f"\n#### `{path}`\n\n<!-- SHA-256: {digest} -->\n\n".encode())
-            fence_length = max(
-                3,
-                max(
-                    (len(match.group(0)) for match in re.finditer(rb"`+", content)),
-                    default=0,
+            variants = [(path, content, digest)]
+            lf_content = content.replace(b"\r\n", b"\n")
+            if lf_content != content:
+                variants.append(
+                    (
+                        f"{path} [LF line endings]",
+                        lf_content,
+                        hashlib.sha256(lf_content).hexdigest(),
+                    )
                 )
-                + 1,
-            )
-            fence = b"`" * fence_length
-            chunks.extend((fence + b"text\n", content))
-            if not content.endswith((b"\n", b"\r")):
-                chunks.append(b"\n")
-            chunks.append(fence + b"\n")
+            for variant_path, variant_content, variant_digest in variants:
+                chunks.append(
+                    f"\n#### `{variant_path}`\n\n<!-- SHA-256: {variant_digest} -->\n\n".encode()
+                )
+                fence_length = max(
+                    3,
+                    max(
+                        (
+                            len(match.group(0))
+                            for match in re.finditer(rb"`+", variant_content)
+                        ),
+                        default=0,
+                    )
+                    + 1,
+                )
+                fence = b"`" * fence_length
+                chunks.extend((fence + b"text\n", variant_content))
+                if not variant_content.endswith((b"\n", b"\r")):
+                    chunks.append(b"\n")
+                chunks.append(fence + b"\n")
     return b"".join(chunks)
 
 
@@ -202,10 +225,13 @@ def _check_notice() -> None:
                 f"lock={locked_version}, installed={distribution.version}"
             )
         for path, content, digest in _license_files(distribution):
-            heading = f"#### `{path}`".encode()
+            headings = (
+                f"#### `{path}`".encode(),
+                f"#### `{path} [LF line endings]`".encode(),
+            )
             checksum = f"<!-- SHA-256: {digest} -->".encode()
             if (
-                heading not in current
+                not any(heading in current for heading in headings)
                 or checksum not in current
                 or content not in current
             ):
