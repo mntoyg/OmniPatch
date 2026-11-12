@@ -42,15 +42,15 @@ uv run omnipatch version
 uv run omnipatch --help
 ```
 
-For a released wheel, use the accompanying hash-pinned `requirements-runtime.txt`
-from the same release to keep installed dependency versions aligned with the lock
-and bundled third-party notice inventory. Install the requirements first, then
-install the wheel without resolving a second dependency set:
+For a released wheel, replace `VERSION` below with the version of the wheel shipped in the
+same release. Use its accompanying hash-pinned `requirements-runtime.txt` to keep installed
+dependency versions aligned with the lock and bundled third-party notice inventory. Install the
+requirements first, then install the wheel without resolving a second dependency set:
 
 ```powershell
 uv venv
 uv pip sync --python .venv/Scripts/python.exe --require-hashes requirements-runtime.txt
-uv pip install --python .venv/Scripts/python.exe --no-deps dist/omnipatch-0.1.0-py3-none-any.whl
+uv pip install --python .venv/Scripts/python.exe --no-deps dist/omnipatch-VERSION-py3-none-any.whl
 ```
 
 On Linux, use `.venv/bin/python` in place of `.venv/Scripts/python.exe`. The wheel
