@@ -19,9 +19,9 @@ Before preparing a release candidate:
 ## Build and verify artifacts
 
 1. Choose the intended version, update `project.version` in `pyproject.toml`, and refresh
-   `uv.lock`. The CI wheel smoke steps and README install example currently name
-   `omnipatch-0.1.0-py3-none-any.whl`; update both version references or make them
-   version-independent before changing the package version.
+   `uv.lock`. The CI wheel smoke steps currently name `omnipatch-0.1.0-py3-none-any.whl`; make that
+   reference version-independent before changing the package version. The README install example
+   already uses `omnipatch-VERSION-py3-none-any.whl`; replace `VERSION` with the shipped version.
 2. Treat the versioned commit as a new release candidate. Before tagging it, rerun the full required
    CI matrix, Gitleaks, and dependency audit on that exact commit. Reconfirm that third-party
    sign-off, TL/SE review, and pilot evidence cover the exact source and wheel candidate being
