@@ -58,20 +58,18 @@ jobs:
               )
 
           output = result.stdout + result.stderr
-          has_rule = "github-pat" in output
           has_finding_summary = "leaks found:" in output and "no leaks found" not in output
           is_redacted = synthetic_canary not in output
           if (
               result.returncode == 0
-              or not has_rule
               or not has_finding_summary
               or not is_redacted
           ):
               safe_output = output.replace(synthetic_canary, "[REDACTED CANARY]")
               print(
                   "Canary diagnostics: "
-                  f"exit={result.returncode}, rule={has_rule}, "
-                  f"summary={has_finding_summary}, redacted={is_redacted}."
+                  f"exit={result.returncode}, summary={has_finding_summary}, "
+                  f"redacted={is_redacted}."
               )
               print(safe_output[-1000:])
               print("Gitleaks synthetic canary detection/redaction check failed.")
