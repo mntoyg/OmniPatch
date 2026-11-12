@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Literal
 
 from omnipatch.codebase.repo_io import patched_sandbox
-from omnipatch.errors import PatchApplyError
+from omnipatch.codebase.source import capture_source_root, read_finding_source
+from omnipatch.errors import PatchApplyError, PatchGenerationError
 from omnipatch.models import Finding, Patch, PatchResult
 from omnipatch.scanners.base import Scanner
 from omnipatch.validation.patch_validator import materialize_patch_source
@@ -19,21 +20,26 @@ def verify_patch(
     scanner: Scanner,
     baseline: Sequence[Finding],
     policy: Literal["severity", "strict"] = "severity",
+    *,
+    root_identity: tuple[int, int] | None = None,
 ) -> PatchResult:
     """Re-scan the patched file in isolation and judge the patch."""
     if policy not in ("severity", "strict"):
         raise PatchApplyError(f"Unknown verification policy: {policy}")
-    root = repo_root.resolve()
+    try:
+        if root_identity is None:
+            root, root_identity = capture_source_root(repo_root)
+        else:
+            root = repo_root
+    except PatchGenerationError as exc:
+        raise PatchApplyError("Unable to resolve repository root") from exc
     if patch.finding_id != finding.id or patch.touched_files != (finding.file,):
         raise PatchApplyError("Patch metadata does not match the finding")
-    source_path = (root / Path(finding.file.as_posix())).resolve()
-    if not source_path.is_relative_to(root):
-        raise PatchApplyError(
-            f"Finding path resolves outside repository: {finding.file}"
-        )
     try:
-        original_source = source_path.read_text(encoding="utf-8", errors="strict")
-    except (OSError, UnicodeError) as exc:
+        original_source = read_finding_source(
+            finding, root, root_identity=root_identity
+        )
+    except PatchGenerationError as exc:
         raise PatchApplyError(f"Unable to read finding source: {finding.file}") from exc
 
     patched_source = materialize_patch_source(

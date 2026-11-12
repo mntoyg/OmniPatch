@@ -296,7 +296,7 @@ def test_non_utf8_source_is_rejected(tmp_path: Path) -> None:
 def test_unreadable_source_is_wrapped(tmp_path: Path) -> None:
     """Filesystem read failures raise PatchGenerationError."""
     (tmp_path / "sample.py").mkdir()
-    with pytest.raises(PatchGenerationError, match="Unable to read"):
+    with pytest.raises(PatchGenerationError, match="Unable to read|not a regular file"):
         extract_context(make_finding("sample.py", 1), tmp_path)
 
 

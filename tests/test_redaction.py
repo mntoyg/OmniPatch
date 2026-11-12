@@ -72,7 +72,6 @@ def test_redact_every_sensitive_name_fragment(name: str) -> None:
 
 def test_redact_pem_preserves_line_count_and_is_idempotent() -> None:
     """PEM material is replaced line by line and repeated redaction is stable."""
-    # Synthetic test-only PEM fixture for redaction coverage; never a credential.
     source = (
         'KEY = """-----BEGIN PRIVATE KEY-----\n'
         "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n"

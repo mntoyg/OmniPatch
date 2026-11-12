@@ -45,6 +45,20 @@ def test_context_max_lines_defaults_and_has_minimum() -> None:
         Settings(context_max_lines=9, _env_file=None)
 
 
+def test_snapshot_limits_have_bounded_positive_defaults() -> None:
+    """Snapshot controls have explicit positive bounds and documented defaults."""
+    settings = Settings(_env_file=None)
+    assert settings.snapshot_max_bytes == 1 << 30
+    assert settings.snapshot_max_file_bytes == 1 << 27
+    assert settings.snapshot_max_entries == 100_000
+    assert settings.snapshot_max_metadata_entries == 100_000
+    assert settings.snapshot_timeout_seconds == 120
+    with pytest.raises(ValueError):
+        Settings(snapshot_max_bytes=0, _env_file=None)
+    with pytest.raises(ValueError):
+        Settings(snapshot_max_file_bytes=1 << 39, _env_file=None)
+
+
 def test_verification_policy_defaults_to_severity_and_accepts_strict() -> None:
     """Severity comparison is the default and strict remains configurable."""
     assert Settings(_env_file=None).verify_policy == "severity"
