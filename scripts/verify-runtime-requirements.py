@@ -9,8 +9,15 @@ ROOT = Path(__file__).resolve().parents[1]
 LOCKED_REQUIREMENTS = ROOT / "requirements-runtime.txt"
 
 
+def _normalize_newlines(value: bytes) -> bytes:
+    """Ignore platform newline conversion while preserving all requirement bytes."""
+    return value.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
 def verify(generated: Path) -> None:
-    if generated.read_bytes() != LOCKED_REQUIREMENTS.read_bytes():
+    if _normalize_newlines(generated.read_bytes()) != _normalize_newlines(
+        LOCKED_REQUIREMENTS.read_bytes()
+    ):
         raise ValueError(
             "generated runtime requirements differ from the tracked lock export"
         )
