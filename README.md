@@ -14,6 +14,18 @@ This public-preview candidate is not a production security product. Current evid
 
 The supported behavior is intentionally narrow and may change during the preview. OmniPatch is not a general vulnerability scanner, autonomous deployment tool, or substitute for a security review.
 
+## Supported platforms and snapshot limits
+
+Secure repository snapshots are supported on Windows and Linux only. Windows snapshots require a
+local fixed disk. Linux snapshots require `openat2`, one of `x86_64`, `aarch64`, or `riscv64`,
+and one of the supported filesystems: ext4, XFS, Btrfs, or tmpfs. macOS, other Linux architectures,
+and other filesystems are not supported for secure snapshot workflows; OmniPatch reports an error
+instead of silently falling back to an unbounded path-based read.
+
+Default snapshot limits are 1 GiB total copied data, 128 MiB per file, 100,000 source entries,
+100,000 metadata entries, and 120 seconds. Large or unsupported repositories may therefore be
+rejected. These are safety bounds, not estimates of repository capacity.
+
 ## Requirements
 
 - Python 3.11 or newer.
@@ -29,6 +41,21 @@ uv sync --locked
 uv run omnipatch version
 uv run omnipatch --help
 ```
+
+For a released wheel, replace `VERSION` below with the version of the wheel shipped in the
+same release. Use its accompanying hash-pinned `requirements-runtime.txt` to keep installed
+dependency versions aligned with the lock and bundled third-party notice inventory. Install the
+requirements first, then install the wheel without resolving a second dependency set:
+
+```powershell
+uv venv
+uv pip sync --python .venv/Scripts/python.exe --require-hashes requirements-runtime.txt
+uv pip install --python .venv/Scripts/python.exe --no-deps dist/omnipatch-VERSION-py3-none-any.whl
+```
+
+On Linux, use `.venv/bin/python` in place of `.venv/Scripts/python.exe`. The wheel
+metadata allows compatible dependency versions; installing the wheel alone with
+an unconstrained resolver may select versions outside the lock snapshot.
 
 ## Quick start
 
@@ -91,7 +118,7 @@ uv run ruff format --check .
 uv run bandit -q -r src/
 ```
 
-Live-provider and protected holdout tests are intentionally excluded from routine CI. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the contribution workflow and required review.
+Live-provider and protected holdout tests are intentionally excluded from routine CI. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the contribution workflow and required review. See [`docs/RELEASING.md`](docs/RELEASING.md) for the manual source-and-wheel preview release procedure.
 
 ## License
 

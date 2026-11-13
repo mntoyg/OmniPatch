@@ -1,9 +1,9 @@
 name: CI
 
 on:
-  pull_request:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -15,33 +15,65 @@ concurrency:
 
 jobs:
   quality:
-    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            python-version: "3.11"
-          - os: ubuntu-latest
-            python-version: "3.12"
-          - os: windows-latest
-            python-version: "3.12"
-
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
     steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Install uv and Python
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.13.7"
-          python-version: ${{ matrix.python-version }}
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Install locked dependencies
-        run: uv sync --locked
+        run: uv sync --locked --all-groups
+
+      - name: Audit locked dependencies against OSV
+        run: uv audit --locked --output-format text --python-version ${{ matrix.python-version }} --python-platform ${{ runner.os == 'Windows' && 'windows' || 'linux' }}
+
+      - name: Check generated third-party notices
+        run: uv run --frozen python scripts/generate-third-party-notices.py --check
+
+      - name: Build wheel and verify bundled notices
+        run: |
+          uv build --wheel --out-dir dist
+          uv run --frozen python scripts/verify-wheel-notices.py dist
+
+      - name: Export locked runtime requirements and create clean environment
+        run: |
+          uv export --locked --no-dev --no-emit-project --format requirements.txt --no-header --no-annotate --output-file dist/runtime-requirements.txt
+          uv run --frozen python scripts/verify-runtime-requirements.py dist/runtime-requirements.txt
+          uv venv --python ${{ matrix.python-version }} dist/wheel-smoke
+
+      - name: Install and smoke-test built wheel (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          uv pip sync --python dist/wheel-smoke/bin/python --require-hashes dist/runtime-requirements.txt
+          uv pip install --python dist/wheel-smoke/bin/python --no-deps dist/omnipatch-0.1.0-py3-none-any.whl
+          uv pip check --python dist/wheel-smoke/bin/python
+          dist/wheel-smoke/bin/python scripts/smoke-installed-wheel.py dist/wheel-smoke/bin/omnipatch tests/fixtures/vulnerable_app
+
+      - name: Install and smoke-test built wheel (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          uv pip sync --python dist/wheel-smoke/Scripts/python.exe --require-hashes dist/runtime-requirements.txt
+          uv pip install --python dist/wheel-smoke/Scripts/python.exe --no-deps dist/omnipatch-0.1.0-py3-none-any.whl
+          uv pip check --python dist/wheel-smoke/Scripts/python.exe
+          dist/wheel-smoke/Scripts/python.exe scripts/smoke-installed-wheel.py dist/wheel-smoke/Scripts/omnipatch.exe tests/fixtures/vulnerable_app
 
       - name: Run default test suite
         run: uv run --frozen python -m pytest -q
@@ -49,13 +81,28 @@ jobs:
       - name: Run safe integration tests
         run: uv run --frozen python -m pytest -q -o addopts= -m "integration and not protected"
 
-      - name: Run strict type checks
-        run: uv run --frozen mypy --strict src/
+      - name: Exercise POSIX source reads on Linux
+        if: runner.os == 'Linux'
+        run: uv run --frozen python -m pytest -q tests/test_source.py tests/test_ast_tools.py
 
-      - name: Run lint and formatting checks
-        run: |
-          uv run --frozen ruff check .
-          uv run --frozen ruff format --check .
+      - name: Run strict type checks
+        run: uv run --frozen python -m mypy --strict src/
+
+      - name: Check GitHub transport types
+        run: uv run --frozen python -m mypy --strict --disallow-any-expr src/omnipatch/vcs/github_client.py
+
+      - name: Check Anthropic transport types
+        run: uv run --frozen python -m mypy --strict --disallow-any-expr src/omnipatch/agents/anthropic_client.py
+
+      - name: Check Ollama transport types
+        run: uv run --frozen python -m mypy --strict --disallow-any-expr src/omnipatch/agents/ollama_client.py
+
+      - name: Check lint
+        run: uv run --frozen python -m ruff check .
+
+      - name: Check formatting
+        run: uv run --frozen python -m ruff format --check .
 
       - name: Run Bandit self-scan
-        run: uv run --frozen bandit -q -r src/
+        run: uv run --frozen python -m bandit -q -r src/
+

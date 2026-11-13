@@ -1,0 +1,145 @@
+name: Gitleaks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitleaks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out full history
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify scanner detects a synthetic canary
+        run: |
+          go version
+          python - <<'PY'
+          import pathlib
+          import secrets
+          import string
+          import subprocess
+          import sys
+          import tempfile
+
+          synthetic_canary = "SELF_LABEL_NO_AUTH_PLACEHOLDER=ghp_" + "".join(
+              secrets.choice(string.ascii_letters + string.digits) for _ in range(36)
+          )
+          with tempfile.TemporaryDirectory(prefix="omnipatch-gitleaks-") as temp_dir:
+              canary_file = pathlib.Path(temp_dir) / "synthetic-canary.txt"
+              canary_file.write_text(synthetic_canary, encoding="utf-8")
+              result = subprocess.run(
+                  [
+                      "go",
+                      "run",
+                      "github.com/zricethezav/gitleaks/v8@v8.29.1",
+                      "dir",
+                      "--redact=100",
+                      "--no-banner",
+                      temp_dir,
+                  ],
+                  capture_output=True,
+                  check=False,
+                  text=True,
+                  timeout=120,
+              )
+
+          output = result.stdout + result.stderr
+          has_finding_summary = "leaks found:" in output and "no leaks found" not in output
+          is_redacted = synthetic_canary not in output
+          if (
+              result.returncode == 0
+              or not has_finding_summary
+              or not is_redacted
+          ):
+              safe_output = output.replace(synthetic_canary, "[REDACTED CANARY]")
+              print(
+                  "Canary diagnostics: "
+                  f"exit={result.returncode}, summary={has_finding_summary}, "
+                  f"redacted={is_redacted}."
+              )
+              print(safe_output[-1000:])
+              print("Gitleaks synthetic canary detection/redaction check failed.")
+              sys.exit(1)
+          print("Gitleaks detected the synthetic canary; output was redacted.")
+          PY
+
+      - name: Scan working tree and full Git history
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import subprocess
+          import sys
+          import tempfile
+
+          scanner = ["go", "run", "github.com/zricethezav/gitleaks/v8@v8.29.1"]
+
+          def scan(name: str, arguments: list[str]) -> int:
+              with tempfile.TemporaryDirectory(prefix="omnipatch-gitleaks-report-") as temp_dir:
+                  report_path = pathlib.Path(temp_dir) / "findings.json"
+                  result = subprocess.run(
+                      scanner
+                      + arguments
+                      + [
+                          "--redact=100",
+                          "--no-banner",
+                          "--report-format=json",
+                          f"--report-path={report_path}",
+                          ".",
+                      ],
+                      capture_output=True,
+                      check=False,
+                      text=True,
+                      timeout=300,
+                  )
+                  if not report_path.is_file():
+                      print(f"{name}: scanner did not create a report; exit={result.returncode}.")
+                      return -1
+                  try:
+                      findings = json.loads(report_path.read_text(encoding="utf-8"))
+                  except (OSError, json.JSONDecodeError):
+                      print(f"{name}: scanner report was unreadable; exit={result.returncode}.")
+                      return -1
+                  if not isinstance(findings, list):
+                      print(f"{name}: scanner report had an unexpected shape.")
+                      return -1
+
+                  print(f"{name}: {len(findings)} finding(s); exit={result.returncode}.")
+                  for finding in findings:
+                      print(
+                          "  rule={rule} path={path} line={line} commit={commit} fingerprint={fingerprint}".format(
+                              rule=finding.get("RuleID", "unknown"),
+                              path=finding.get("File", "unknown"),
+                              line=finding.get("StartLine", "unknown"),
+                              commit=finding.get("Commit", "unknown"),
+                              fingerprint=finding.get("Fingerprint", "unknown"),
+                          )
+                      )
+                  if findings and result.returncode == 0:
+                      print(f"{name}: findings did not produce a failure status.")
+                      return -1
+                  if not findings and result.returncode != 0:
+                      print(f"{name}: scanner failed without reporting findings.")
+                      return -1
+                  return len(findings)
+
+          working_tree = scan("working tree", ["dir"])
+          history = scan("full Git history", ["git", "--log-opts=--full-history --all --diff-filter=tuxdb"])
+          if working_tree != 0 or history != 0:
+              sys.exit(1)
+          PY
+

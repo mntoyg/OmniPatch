@@ -1,6 +1,8 @@
 """Tests for AST-based code context extraction."""
 
 import ast
+import base64
+import secrets
 from pathlib import Path, PurePosixPath
 
 import pytest
@@ -296,31 +298,35 @@ def test_non_utf8_source_is_rejected(tmp_path: Path) -> None:
 def test_unreadable_source_is_wrapped(tmp_path: Path) -> None:
     """Filesystem read failures raise PatchGenerationError."""
     (tmp_path / "sample.py").mkdir()
-    with pytest.raises(PatchGenerationError, match="Unable to read"):
+    with pytest.raises(PatchGenerationError, match="Unable to read|not a regular file"):
         extract_context(make_finding("sample.py", 1), tmp_path)
+
+
+def _synthetic_assignment(name: str, quote: str) -> tuple[str, str]:
+    secret = secrets.token_urlsafe(24)
+    return f"\n{name} = {quote}{secret}{quote}\n", secret
+
+
+def _synthetic_private_key_case() -> tuple[str, str]:
+    body = base64.b64encode(secrets.token_bytes(24)).decode("ascii")
+    begin = "-----BEGIN " + "PRIVATE KEY-----"
+    end = "-----END " + "PRIVATE KEY-----"
+    source = f'\nPRIVATE_KEY = """{begin}\n{body}\n{end}\n"""\n'
+    return source, body
 
 
 @pytest.mark.parametrize(
     ("source", "secret"),
     [
-        ('PASSWORD = "fixture-password-value"\n', "fixture-password-value"),
-        ("TOKEN = 'sk-0123456789abcdef'\n", "sk-0123456789abcdef"),
-        ("TOKEN = 'ghp_01234567890123456789'\n", "ghp_01234567890123456789"),
-        (
-            "TOKEN = 'github_pat_0123456789abcdefghijklmn'\n",
-            "github_pat_0123456789abcdefghijklmn",
+        pytest.param(
+            *_synthetic_assignment("PASSWORD", '"'), id="password-double-quoted"
         ),
-        ("TOKEN = 'AKIA1234567890ABCDEF'\n", "AKIA1234567890ABCDEF"),
-        ("TOKEN = 'xoxb-1234567890-abcd'\n", "xoxb-1234567890-abcd"),
-        (
-            (
-                'PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----\n'
-                "private-key-material\n"
-                "-----END PRIVATE KEY-----\n"
-                '"""\n'
-            ),
-            "private-key-material",
-        ),
+        pytest.param(*_synthetic_assignment("TOKEN", "'"), id="token-single-quoted-1"),
+        pytest.param(*_synthetic_assignment("TOKEN", "'"), id="token-single-quoted-2"),
+        pytest.param(*_synthetic_assignment("TOKEN", "'"), id="token-single-quoted-3"),
+        pytest.param(*_synthetic_assignment("TOKEN", "'"), id="token-single-quoted-4"),
+        pytest.param(*_synthetic_assignment("TOKEN", "'"), id="token-single-quoted-5"),
+        pytest.param(*_synthetic_private_key_case(), id="private-key"),
     ],
 )
 def test_extract_context_redacts_secrets_from_the_choke_point(

@@ -14,9 +14,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 RUNNER = REPOSITORY_ROOT / "scripts" / "run-b105-canary-smoke.ps1"
 
 
+@pytest.mark.skipif(os.name != "nt", reason="runner uses a Windows venv path")
 def test_powershell_runner_preflight_and_audit_classification_are_offline() -> None:
-    if os.name != "nt":
-        pytest.skip("The B105 canary runner is Windows-specific")
     powershell = shutil.which("pwsh")
     if powershell is None:
         pytest.skip("PowerShell 7 is unavailable for the runner's offline self-test")

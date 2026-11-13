@@ -13,12 +13,15 @@ def build_scanner(
     name: str,
     timeout_seconds: int = DEFAULT_SCAN_TIMEOUT_SECONDS,
     excluded_dirs: Sequence[str] = EXCLUDED_DIRS,
+    *,
+    report_scope: bool = True,
 ) -> Scanner:
     """Return the scanner registered under name, or raise ScannerError."""
     if name == "bandit":
         return BanditScanner(
             timeout_seconds=timeout_seconds,
             excluded_dirs=excluded_dirs,
+            report_scope=report_scope,
         )
     if name == "stub":
         return StubScanner()
