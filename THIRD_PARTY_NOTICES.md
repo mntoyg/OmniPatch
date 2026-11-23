@@ -29,7 +29,7 @@ Included locked third-party distributions: 49.
 | mdurl | 0.1.2 | OSI Approved :: MIT License | [sdist](https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz) | `bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba` | `mdurl-0.1.2.dist-info/LICENSE` |
 | mypy | 2.4.0 | MIT | [sdist](https://files.pythonhosted.org/packages/34/4e/64300736cf0a0373a27b94a91b664ee7382e36f77b0621bae6381da3e180/mypy-2.4.0.tar.gz) | `77bdaebd452f43fcfc4cc3ba94352a3ea537cd01e3f2d0879f48673d2ec00d6e` | `mypy-2.4.0.dist-info/licenses/LICENSE`, `mypy-2.4.0.dist-info/licenses/LICENSE [LF line endings]`, `mypy-2.4.0.dist-info/licenses/mypy/typeshed/LICENSE`, `mypy-2.4.0.dist-info/licenses/mypy/typeshed/LICENSE [LF line endings]`, `mypy/typeshed/LICENSE`, `mypy/typeshed/LICENSE [LF line endings]` |
 | mypy_extensions | 1.1.0 | MIT | [sdist](https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8dac321cda606860fa4548858c0cc45d9d1d4ca2628b/mypy_extensions-1.1.0.tar.gz) | `52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558` | `mypy_extensions-1.1.0.dist-info/licenses/LICENSE` |
-| opentelemetry-api | 1.45.1 | Apache-2.0 | [sdist](https://files.pythonhosted.org/packages/2e/02/6e0ae9cc61bd3169d401077b507b3ebc344745171e1051ab430be012dcd9/opentelemetry_api-1.45.1.tar.gz) | `aa38ed19bcc084ba42782a73255b3582283eced7ad6dddbd6695189e69adfb75` | `opentelemetry_api-1.45.1.dist-info/licenses/LICENSE` |
+| opentelemetry-api | 1.45.2 | Apache-2.0 | [sdist](https://files.pythonhosted.org/packages/19/14/cf3a6b6448849656e1e5f1e5f4e2101f3988dc6789724050096aba1bc5ccf592/opentelemetry_api-1.45.2.tar.gz) | `d7b0008e21e5fd61cbe7a7f34ca3b6905a78ab677d9bc395e299359c75cda6b4` | `opentelemetry_api-1.45.2.dist-info/licenses/LICENSE` |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | [sdist](https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz) | `94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79` | `packaging-26.3.dist-info/licenses/LICENSE`, `packaging-26.3.dist-info/licenses/LICENSE.APACHE`, `packaging-26.3.dist-info/licenses/LICENSE.BSD` |
 | pathspec | 1.1.1 | OSI Approved :: Mozilla Public License 2.0 (MPL 2.0) | [sdist](https://files.pythonhosted.org/packages/5a/82/42f767fc1c1143d6fd36efb827202a2d997a375e160a71eb2888a925aac1/pathspec-1.1.1.tar.gz) | `17db5ecd524104a120e173814c90367a96a98d07c45b2e10c2f3919fff91bf5a` | `pathspec-1.1.1.dist-info/licenses/LICENSE` |
 | pluggy | 1.7.0 | MIT | [sdist](https://files.pythonhosted.org/packages/bf/db/7fc19e6f2dc92a966727031389fc2e08b558f0f25eb7403c1119ad4713cd/pluggy-1.7.0.tar.gz) | `d1eaa46ebb595891b860ab086b4d09c8588af65ebd4361b8e8f4bb8920b90ba8` | `pluggy-1.7.0.dist-info/licenses/LICENSE` |
@@ -4442,9 +4442,9 @@ DEALINGS IN THE SOFTWARE.
 = = = = =
 ```
 
-### opentelemetry-api 1.45.1
+### opentelemetry-api 1.45.2
 
-#### `opentelemetry_api-1.45.1.dist-info/licenses/LICENSE`
+#### `opentelemetry_api-1.45.2.dist-info/licenses/LICENSE`
 
 <!-- SHA-256: c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4 -->
 
