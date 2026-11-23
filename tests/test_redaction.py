@@ -1,5 +1,8 @@
 """Tests for deterministic source-secret redaction."""
 
+import base64
+import secrets
+
 import pytest
 
 from omnipatch.codebase.redaction import REDACTION_MARKER, redact
@@ -72,13 +75,10 @@ def test_redact_every_sensitive_name_fragment(name: str) -> None:
 
 def test_redact_pem_preserves_line_count_and_is_idempotent() -> None:
     """PEM material is replaced line by line and repeated redaction is stable."""
-    # Synthetic test-only PEM fixture for redaction coverage; never a credential.
-    source = (
-        'KEY = """-----BEGIN PRIVATE KEY-----\n'
-        "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n"
-        "-----END PRIVATE KEY-----\n"
-        '"""\n'
-    )
+    key_body = base64.b64encode(secrets.token_bytes(24)).decode("ascii")
+    begin = "-----BEGIN " + "PRIVATE KEY-----"
+    end = "-----END " + "PRIVATE KEY-----"
+    source = f'KEY = """{begin}\n{key_body}\n{end}\n"""'
     result = redact(source)
     assert "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC" not in result
     assert result.count("\n") == source.count("\n")

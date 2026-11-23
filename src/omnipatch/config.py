@@ -18,6 +18,11 @@ from omnipatch.defaults import (
     DEFAULT_OLLAMA_ENDPOINT,
     DEFAULT_OLLAMA_TIMEOUT_SECONDS,
     DEFAULT_SCAN_TIMEOUT_SECONDS,
+    DEFAULT_SNAPSHOT_MAX_BYTES,
+    DEFAULT_SNAPSHOT_MAX_ENTRIES,
+    DEFAULT_SNAPSHOT_MAX_FILE_BYTES,
+    DEFAULT_SNAPSHOT_MAX_METADATA_ENTRIES,
+    DEFAULT_SNAPSHOT_TIMEOUT_SECONDS,
     EXCLUDED_DIRS,
 )
 from omnipatch.errors import ConfigError
@@ -83,6 +88,21 @@ class Settings(BaseSettings):
     scanner: str = "bandit"
     scan_timeout_seconds: int = Field(default=DEFAULT_SCAN_TIMEOUT_SECONDS, ge=1)
     scan_exclude: str = ",".join(EXCLUDED_DIRS)
+    snapshot_max_bytes: int = Field(
+        default=DEFAULT_SNAPSHOT_MAX_BYTES, ge=1, le=1 << 40
+    )
+    snapshot_max_file_bytes: int = Field(
+        default=DEFAULT_SNAPSHOT_MAX_FILE_BYTES, ge=1, le=1 << 38
+    )
+    snapshot_max_entries: int = Field(
+        default=DEFAULT_SNAPSHOT_MAX_ENTRIES, ge=1, le=10_000_000
+    )
+    snapshot_max_metadata_entries: int = Field(
+        default=DEFAULT_SNAPSHOT_MAX_METADATA_ENTRIES, ge=1, le=10_000_000
+    )
+    snapshot_timeout_seconds: int = Field(
+        default=DEFAULT_SNAPSHOT_TIMEOUT_SECONDS, ge=1, le=3600
+    )
     context_max_lines: int = Field(default=DEFAULT_CONTEXT_MAX_LINES, ge=10)
     secret_environment: dict[str, str] = Field(default_factory=dict)
     sql_paramstyle: dict[str, str] = Field(default_factory=dict)

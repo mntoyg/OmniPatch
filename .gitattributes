@@ -1,1 +1,2 @@
-* text=auto eol=lf
+# Preserve upstream license bytes, including CRLF and intentional trailing spaces.
+THIRD_PARTY_NOTICES.md -text whitespace=cr-at-eol,-blank-at-eol

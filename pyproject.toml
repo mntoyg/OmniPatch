@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.26.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Headless CLI for generating security patches"
 readme = "README.md"
 license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.11"
 dependencies = [
     "typer>=0.12",

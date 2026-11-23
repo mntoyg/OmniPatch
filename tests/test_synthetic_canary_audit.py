@@ -131,8 +131,10 @@ if mode == "auditor_error":
 if mode == "initial_leak":
     original_prepare = cli._prepare_finding_contexts
 
-    def leak_initial_context(findings, repo_root, settings):
-        contexts = original_prepare(findings, repo_root, settings)
+    def leak_initial_context(findings, repo_root, settings, root_identity=None):
+        contexts = original_prepare(
+            findings, repo_root, settings, root_identity
+        )
         return {
             finding_id: replace(context, snippet=f"{context.snippet}\n{canary}")
             for finding_id, context in contexts.items()

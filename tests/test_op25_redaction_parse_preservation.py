@@ -4,6 +4,7 @@ Every fixture secret here is self-labelling, as `AGENTS.md` section 2 requires.
 """
 
 import ast
+import secrets
 import textwrap
 from pathlib import Path, PurePosixPath
 
@@ -14,7 +15,7 @@ from omnipatch.codebase.ast_tools import extract_context
 from omnipatch.codebase.redaction import REDACTION_MARKER, redact
 from omnipatch.models import Finding, Severity
 
-SECRET = "hunter2-SYNTHETIC"
+SECRET = secrets.token_urlsafe(24)  # Synthetic test value; no live credential.
 
 
 def parses(source: str) -> bool:

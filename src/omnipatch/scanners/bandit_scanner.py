@@ -99,11 +99,13 @@ class BanditScanner:
         command: Sequence[str] = DEFAULT_COMMAND,
         timeout_seconds: int = DEFAULT_SCAN_TIMEOUT_SECONDS,
         excluded_dirs: Sequence[str] = EXCLUDED_DIRS,
+        report_scope: bool = True,
     ) -> None:
         """Configure command, timeout, and excluded repository directories."""
         self._command = tuple(command)
         self._timeout_seconds = timeout_seconds
         self._excluded_dirs = tuple(excluded_dirs)
+        self._report_scope_enabled = report_scope
 
     def is_available(self) -> bool:
         """True when the configured command's version check succeeds."""
@@ -267,7 +269,8 @@ class BanditScanner:
             (directory, PurePosixPath(directory.replace("\\", "/")).parts)
             for directory in self._excluded_dirs
         )
-        self._report_scope(resolved_root, excluded_parts)
+        if self._report_scope_enabled:
+            self._report_scope(resolved_root, excluded_parts)
         retained: list[Finding] = []
         matched_directories: set[str] = set()
         excluded_count = 0

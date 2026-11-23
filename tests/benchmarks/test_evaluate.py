@@ -116,7 +116,7 @@ def test_case_selection_is_explicit_and_approval_metadata_is_current() -> None:
         "dev-b602-wrapper-call",
     )
     with pytest.raises(ValueError, match="Unsupported development case"):
-        _case_metadata("unknown-development-case")
+        _case_metadata("holdout-b608-select-filter")
     for case_id in DEVELOPMENT_CASE_IDS:
         metadata = _case_metadata(case_id)
         assert metadata["reference_fix_status"] == "approved_by_owner"

@@ -1,0 +1,12 @@
+# Historical synthetic redaction-test values; current test inputs are generated at runtime.
+13ef844bf034824cc64bb63bc6be8c98b322ea1f:tests/test_ast_tools.py:generic-api-key:307
+13ef844bf034824cc64bb63bc6be8c98b322ea1f:tests/test_ast_tools.py:generic-api-key:308
+13ef844bf034824cc64bb63bc6be8c98b322ea1f:tests/test_ast_tools.py:generic-api-key:313
+13ef844bf034824cc64bb63bc6be8c98b322ea1f:tests/test_ast_tools.py:generic-api-key:314
+13ef844bf034824cc64bb63bc6be8c98b322ea1f:tests/test_ast_tools.py:private-key:317
+13ef844bf034824cc64bb63bc6be8c98b322ea1f:tests/test_op25_redaction_parse_preservation.py:generic-api-key:17
+13ef844bf034824cc64bb63bc6be8c98b322ea1f:tests/test_redaction.py:private-key:77
+
+# Historical workflow canary implementation; this was synthetic and has been replaced.
+6e533d219d8738462db96c3c073e051b5f0d1bfc:.github/workflows/gitleaks.yml:generic-api-key:37
+

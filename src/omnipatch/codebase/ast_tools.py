@@ -6,6 +6,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import TypeGuard, cast
 
+from omnipatch.codebase.source import read_finding_source
 from omnipatch.defaults import (
     DEFAULT_CONTEXT_MAX_LINES,
     DEFAULT_MODULE_WINDOW_LINES,
@@ -173,6 +174,7 @@ def extract_context(
     max_snippet_lines: int = DEFAULT_CONTEXT_MAX_LINES,
     *,
     module_window_lines: int = DEFAULT_MODULE_WINDOW_LINES,
+    root_identity: tuple[int, int] | None = None,
 ) -> CodeContext:
     """Build the redacted code context surrounding a finding."""
     from omnipatch.codebase.redaction import (
@@ -187,20 +189,7 @@ def extract_context(
         raise PatchGenerationError(
             "Module context window line limit must be at least 1"
         )
-    try:
-        root = repo_root.resolve()
-        source_path = (root / Path(finding.file.as_posix())).resolve()
-        source_path.relative_to(root)
-    except (OSError, RuntimeError, ValueError) as exc:
-        raise PatchGenerationError(
-            f"Context source is outside the repository: {finding.file}"
-        ) from exc
-    try:
-        source = source_path.read_text(encoding="utf-8", errors="strict")
-    except (OSError, UnicodeError) as exc:
-        raise PatchGenerationError(
-            f"Unable to read context source: {finding.file}"
-        ) from exc
+    source = read_finding_source(finding, repo_root, root_identity=root_identity)
     # Bandit B105 locations identify the statement used by the target resolver;
     # synthetic/non-Bandit findings keep the general redaction behavior below.
     if finding.rule_id == "B105" and finding.source == "bandit":
